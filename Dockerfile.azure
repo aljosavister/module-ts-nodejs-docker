@@ -1,0 +1,55 @@
+FROM debian:stable-slim
+
+ENV TZ="Europe/Ljubljana"
+
+# Add timezone
+RUN apt-get clean
+RUN apt-get update
+RUN apt-get -y install tzdata
+RUN echo "Europe/Ljubljana" | tee /etc/timezone
+
+# Install nodejs
+COPY ./docker/setup_18.sh /
+RUN chmod +x setup_18.sh
+RUN ./setup_18.sh
+RUN apt-get update
+RUN apt-get install -y -f nodejs
+
+# Add user
+RUN groupadd -g 999 appuser && useradd -r -u 999 -g appuser appuser
+RUN mkdir /home/appuser
+RUN chown appuser.appuser /home/appuser
+
+# Add for Azure
+RUN mkdir -p /home/LogFiles
+RUN echo "root:Docker!" | chpasswd
+RUN apt-get install -y --no-install-recommends openssh-server vim curl wget tcptraceroute openrc
+RUN rm -f /etc/ssh/sshd_config
+COPY ./docker/sshd_config /etc/ssh/
+COPY ./docker/ssh_setup.sh /
+RUN chmod +x ssh_setup.sh
+RUN ./ssh_setup.sh
+ENV SSH_PORT 2222
+
+# Copy application
+RUN mkdir /home/appuser/dist
+COPY ./dist/* /home/appuser/dist/
+COPY ./package.json /home/appuser/
+
+# Copy hosts
+COPY /docker/hosts /tmp/
+
+# Install npm modules
+WORKDIR /home/appuser
+RUN npm install
+
+# Chown everything that was installed
+RUN chown -R appuser:appuser /home/appuser
+
+# Entrypoint is before CMD
+COPY ./docker/docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
+
+EXPOSE 2222 80 8080
+CMD [ "npm", "run", "start" ]
