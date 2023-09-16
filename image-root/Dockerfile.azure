@@ -1,0 +1,42 @@
+FROM sijregistry.azurecr.io/nodejs:18
+
+# Add user
+RUN groupadd -g 999 appuser && useradd -r -u 999 -g appuser appuser
+RUN mkdir /home/appuser
+RUN chown appuser.appuser /home/appuser
+
+# Add for Azure
+RUN mkdir -p /home/LogFiles
+RUN echo "root:Docker!" | chpasswd
+RUN apt-get install -y --no-install-recommends openssh-server vim curl wget tcptraceroute openrc
+RUN rm -f /etc/ssh/sshd_config
+COPY sshd_config /etc/ssh/
+COPY ssh_setup.sh /
+RUN chmod +x ssh_setup.sh
+RUN ./ssh_setup.sh
+ENV SSH_PORT 2222
+
+# Copy application
+COPY /image-root/dist /image-root/dist
+COPY /image-root/package.json /image-root
+
+# Copy hosts
+COPY /hosts ./image-root
+
+# Install npm modules
+WORKDIR /image-root
+RUN npm install
+WORKDIR /image-root/dist
+RUN npm install
+
+# Go back to image-root
+WORKDIR /image-root
+RUN chown -R appuser:appuser /image-root
+
+# Entrypoint is before CMD
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
+
+EXPOSE 2222 80 8080
+CMD [ "npm", "run", "start" ]
