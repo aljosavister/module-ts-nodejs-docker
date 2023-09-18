@@ -51,5 +51,5 @@ COPY ./docker/docker-entrypoint.sh /
 RUN chmod +x /docker-entrypoint.sh
 ENTRYPOINT [ "/docker-entrypoint.sh" ]
 
-EXPOSE 2222 80 8080
+EXPOSE 2222 80 8080 3200
 CMD [ "npm", "run", "start" ]
