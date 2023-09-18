@@ -33,7 +33,7 @@ ENV SSH_PORT 2222
 
 # Copy application
 RUN mkdir /home/appuser/dist
-COPY ./dist/* /home/appuser/dist/
+COPY ./dist /home/appuser/dist/
 COPY ./package.json /home/appuser/
 
 # Copy hosts
